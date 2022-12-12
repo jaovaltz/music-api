@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 
 import { Music } from '../models/music.model'
-import { getRedis, setRedis } from '../redisConfig'
+import { getRedis, redisClient, setRedis } from '../redisConfig'
 
 const createMusic = async (req: Request, res: Response) => {
   const { title, artist, album, genre, year } = req.body
@@ -15,6 +15,10 @@ const createMusic = async (req: Request, res: Response) => {
   })
 
   if (music) {
+    const cachedKey = 'musics:all'
+
+    await redisClient.del(cachedKey)
+
     return res.status(201).json(music)
   } else {
     return res.status(400).json({ error: 'Something went wrong' })
@@ -85,6 +89,8 @@ const updateMusic = async (req: Request, res: Response) => {
     { new: true }
   )
   if (music) {
+    const cachedKey = `music:${id}`
+    await redisClient.del(cachedKey)
     return res.status(200).json(music)
   } else {
     return res.status(404).json({ error: 'Music not found' })
@@ -95,6 +101,9 @@ const deleteMusic = async (req: Request, res: Response) => {
   const { id } = req.params
   const music = await Music.findByIdAndDelete(id)
   if (music) {
+    const cachedKey = `music:${id}`
+    await redisClient.del(cachedKey)
+
     return res.status(200).json(music)
   } else {
     return res.status(404).json({ error: 'Music not found' })
